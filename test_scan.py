@@ -2,18 +2,17 @@ import socket
 import struct
 import textwrap
 
+
 # The main program is a big infinite loop that will keep on listening to packets
-#sockets are a type of stateful connections and they do not terminate the connection 
+# sockets are a type of stateful connections and they do not terminate the connection
 def main():
     connect = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-    
-
 
     while True:
         raw_data, addr = connect.recvfrom(65530)
-        dest_mac, src_mac, eth_proto, data = ethernet_frame(raw_data)
+        dmac, smac, eth_proto, data = ethernet_frame(raw_data)
         print("\nEthernet Frame")
-        print("Destination: {}, Source: {} , Protocol: {}".format(dest_mac, src_mac, eth_proto))
+        print("Destination: {}, Source: {} , Protocol: {}".format(dmac, smac, eth_proto))
 
         if eth_proto == 8:  # 8 bytes is for IPv4 add.
             version, header_length, ttl, proto, src, target, data = IPv4_packet(data)
@@ -29,19 +28,21 @@ def main():
                 print(format_multi_line('\t\t\t', data))
 
             elif proto == 6:  # 6 is for TCP data
-                src_port, dest_port, seq, ack, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, data = tcp_segment(data)
+                sport, dport, seq, ack, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, data = tcp_segment(
+                    data)
                 print("TCP Packet: ")
-                print("Sorce Port: {} Destination Port: {}".format(src_port, dest_port))
+                print("Sorce Port: {} Destination Port: {}".format(sport, dport))
                 print("Sequence: {}, Acknowledgement: {},".format(seq, ack))
                 print("FLAGS: ")
-                print("URG: {}, ACK: {}, PSH: {}, RST: {}, SYN: {}, FIN: {}".format(flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin))
+                print("URG: {}, ACK: {}, PSH: {}, RST: {}, SYN: {}, FIN: {}".format(flag_urg, flag_ack, flag_psh,
+                                                                                    flag_rst, flag_syn, flag_fin))
                 print("DATA: ")
                 print(format_multi_line('\t\t\t', data))
 
             elif proto == 17:  # 17 is for udp segment
-                src_port, dest_port, size, data = udp_segment(data)
+                sport, dport, size, data = udp_segment(data)
                 print("UDP Segment: ")
-                print("Source Post: {}, Destination Port: {}, Length: {}".format(src_port, dest_port, size))
+                print("Source Post: {}, Destination Port: {}, Length: {}".format(sport, dport, size))
 
                 # Other
             else:
@@ -54,8 +55,9 @@ def main():
 
 # unpack ethernet frame
 def ethernet_frame(data):
-    dest_mac, src_mac, proto = struct.unpack('! 6s 6s H', data[:14])		# the ! is for specifying that data os network format
-    return get_mac_addr(src_mac), get_mac_addr(dest_mac), socket.htons(proto), data[14:]
+    dmac, smac, proto = struct.unpack('! 6s 6s H',
+                                             data[:14])  # the ! is for specifying that data os network format
+    return get_mac_addr(smac), get_mac_addr(dmac), socket.htons(proto), data[14:]
 
 
 # returns proper format for mac_addr( aa:bb:cc:dd:ee)
@@ -75,7 +77,8 @@ def IPv4_packet(data):
 
 # returns properly formatted IPv4 addr
 def IPv4(addr):
-    return ':'.join(map(str, addr))
+    Ipadd= ':'.join(map(str, addr))
+    return Ipadd
 
 
 # unpack icmp packet
@@ -86,7 +89,7 @@ def icmp_packet(data):
 
 # unpack tcp packet
 def tcp_segment(data):
-    (src_port, dest_port, seq, ack, offset_flags) = struct.unpack('! H H L L H', data[:14])
+    (sport, dport, seq, ack, offset_flags) = struct.unpack('! H H L L H', data[:14])
     offset = (offset_flags >> 12) * 4
     flag_urg = (offset_flags & 32) * 5
     flag_ack = (offset_flags & 16) * 4
@@ -94,13 +97,13 @@ def tcp_segment(data):
     flag_rst = (offset_flags & 4) * 2
     flag_syn = (offset_flags & 2) * 1
     flag_fin = (offset_flags & 2)
-    return src_port, dest_port, seq, ack, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, data[offset:]
+    return sport, dport, seq, ack, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, data[offset:]
 
 
 # unpack udp packet
 def udp_segment(data):
-    src_port, dest_port, size = struct.unpack('! H H 2x H', data[:8])
-    return src_port, dest_port, size, data[0:]
+    sport, dport, size = struct.unpack('! H H 2x H', data[:8])
+    return sport, dport, size, data[0:]
 
 
 # format multi-line data
